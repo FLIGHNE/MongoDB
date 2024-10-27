@@ -1,18 +1,95 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const { MongoClient } = require('mongodb');
 
-const mongoose = require('mongoose');
-const uri = "mongodb+srv://kangaroogamingapo0731:ygcUu3ZLPpMy79jQ@fgapp.xk8n3.mongodb.net/?retryWrites=true&w=majority&appName=FGapp";
+const app = express();
+const port = 5000;
 
-const clientOptions = { serverApi: { version: '1', strict: true, deprecationErrors: true } };
+// MongoDB connection string
+const uri = "mongodb+srv://kangaroogamingapo0731:ygcUu3ZLPpMy79jQ@fgapp.xk8n3.mongodb.net/sample_mflix?retryWrites=true&w=majority&appName=FGapp";
 
-async function run() {
-  try {
-    // Create a Mongoose client with a MongoClientOptions object to set the Stable API version
-    await mongoose.connect(uri, clientOptions);
-    await mongoose.connection.db.admin().command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await mongoose.disconnect();
-  }
-}
-run().catch(console.dir);
+let client;
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+
+// Connect to MongoDB
+const connectToDatabase = async () => {
+    try {
+        client = await MongoClient.connect(uri);
+        console.log("Connected to MongoDB");
+    } catch (error) {
+        console.error("Error connecting to MongoDB:", error);
+        throw error;
+    }
+};
+
+// Endpoint to update user profile
+app.post('/updateProfile', async (req, res) => {
+    console.log('Request body:', req.body); // Log the entire request body
+    const { username, displayName, bio } = req.body;
+
+    // Check if the request body is received correctly
+    if (!username || (!displayName && !bio)) {
+        return res.status(400).send({ message: 'Invalid data provided.' });
+    }
+
+    try {
+        const db = client.db();
+        const updateData = {};
+        if (displayName) updateData.Name = displayName; 
+        if (bio) updateData.Bio = bio; 
+
+        console.log('Updating profile for username:', username);
+        console.log('Update data:', updateData);
+
+        const result = await db.collection('users').updateOne(
+            { username }, 
+            { $set: updateData }
+        );
+
+        console.log('Update result:', result);
+
+        if (result.matchedCount === 0) {
+            return res.status(404).send({ message: 'User not found.' });
+        }
+
+        res.status(200).send({ message: 'Profile updated successfully!' });
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        res.status(500).send({ message: 'Internal server error.' });
+    }
+});
+
+// Endpoint to get user profile by username
+app.get('/getUserProfile', async (req, res) => {
+    const { username } = req.query.trim(); // Ensure no leading/trailing spaces
+    console.log('Received username:', username);
+
+    try {
+        const db = client.db();
+        const user = await db.collection('users').findOne({ username });
+
+        if (user) {
+            console.log('User found:', user);
+            res.status(200).send({ Name: user.Name, Bio: user.Bio });
+        } else {
+            console.log(`User not found for username: ${username}`);
+            res.status(404).send({ message: 'User not found.' });
+        }
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        res.status(500).send({ message: 'Internal server error.' });
+    }
+});
+// Start the server
+app.listen(port, () => {
+    connectToDatabase().then(() => {
+        console.log(`Server is running on http://localhost:${port}`);
+    }).catch(error => {
+        console.error('Failed to connect to the database:', error);
+        process.exit(1); // Exit the process with failure
+    });
+});
