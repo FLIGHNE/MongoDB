@@ -1,12 +1,9 @@
 {
   "name": "firstproject",
   "version": "1.0.0",
-  "main": "expo/AppEntry.js",
+  "main": "mongoserver.js",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "node mongoserver.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~3.2.3",
