@@ -6,8 +6,8 @@ const { MongoClient } = require('mongodb');
 const app = express();
 const port = 5000;
 
-// MongoDB connection string (replace with your actual credentials)
-const uri = "mongodb+srv://username:password@fgapp.xk8n3.mongodb.net/sample_mflix?retryWrites=true&w=majority&appName=FGapp";
+// MongoDB connection string
+const uri = "mongodb+srv://kangaroogamingapo0731:ygcUu3ZLPpMy79jQ@fgapp.xk8n3.mongodb.net/sample_mflix?retryWrites=true&w=majority&appName=FGapp";
 
 let client;
 
@@ -18,7 +18,7 @@ app.use(bodyParser.json());
 // Connect to MongoDB
 const connectToDatabase = async () => {
     try {
-        client = await MongoClient.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+        client = await MongoClient.connect(uri);
         console.log("Connected to MongoDB");
     } catch (error) {
         console.error("Error connecting to MongoDB:", error);
@@ -68,18 +68,18 @@ app.get('/getUserProfile', async (req, res) => {
     const { username } = req.query; // Get the username from the query parameters
     console.log('Received username:', username); // Log the received username
 
-    // Use the username directly, as you requested not to trim
-    console.log('Using username for DB query:', username);
+    const trimmedUsername = username.trim(); // Trim for the query
+    console.log('Trimmed username for DB query:', trimmedUsername);
 
     try {
         const db = client.db();
-        const user = await db.collection('users').findOne({ username }); // Use username directly
+        const user = await db.collection('users').findOne({ username: trimmedUsername }); // Use trimmed username
 
         if (user) {
             console.log('User found:', user); // Log the user data
             res.status(200).send({ Name: user.Name, Bio: user.Bio });
         } else {
-            console.log(`User not found for username: ${username}`); // Log if no user is found
+            console.log(`User not found for username: ${trimmedUsername}`); // Log if no user is found
             res.status(404).send({ message: 'User not found.' });
         }
     } catch (error) {
@@ -87,7 +87,6 @@ app.get('/getUserProfile', async (req, res) => {
         res.status(500).send({ message: 'Internal server error.' });
     }
 });
-
 // Start the server
 app.listen(port, () => {
     connectToDatabase().then(() => {
