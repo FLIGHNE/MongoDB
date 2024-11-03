@@ -1,24 +1,23 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
 const { MongoClient } = require('mongodb');
 
 const app = express();
-const port = 5000;
+const port = 5000; // Port to run the server on localhost
+const cors = require('cors');
+
+// Middleware
+app.use(cors());
+app.use(express.json()); // Middleware to parse JSON bodies
 
 // MongoDB connection string
 const uri = "mongodb+srv://kangaroogamingapo0731:ygcUu3ZLPpMy79jQ@fgapp.xk8n3.mongodb.net/sample_mflix?retryWrites=true&w=majority&appName=FGapp";
 
 let client;
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
-
-// Connect to MongoDB
+// Function to connect to MongoDB
 const connectToDatabase = async () => {
     try {
-        client = await MongoClient.connect(uri);
+        client = await MongoClient.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
         console.log("Connected to MongoDB");
     } catch (error) {
         console.error("Error connecting to MongoDB:", error);
@@ -26,73 +25,80 @@ const connectToDatabase = async () => {
     }
 };
 
-// Endpoint to update user profile
+// Define the updateProfile endpoint
 app.post('/updateProfile', async (req, res) => {
-    console.log('Request body:', req.body); // Log the entire request body
     const { username, displayName, bio } = req.body;
 
-    // Check if the request body is received correctly
+    // Basic validation
     if (!username || (!displayName && !bio)) {
-        return res.status(400).send({ message: 'Invalid data provided.' });
+        return res.status(400).json({ message: 'Invalid data provided.' });
     }
 
     try {
-        const db = client.db();
+        const db = client.db('sample_mflix'); // Use your actual database name
         const updateData = {};
-        if (displayName) updateData.Name = displayName; 
-        if (bio) updateData.Bio = bio; 
-
-        console.log('Updating profile for username:', username);
-        console.log('Update data:', updateData);
+        
+        // Update only if new data is provided
+        if (displayName) updateData.Name = displayName; // Use Name for display name
+        if (bio) updateData.Bio = bio; // Use Bio for bio
 
         const result = await db.collection('users').updateOne(
-            { username }, 
-            { $set: updateData }
+            { username: username },
+            { $set: updateData } // Overwrite existing Name and Bio
         );
 
-        console.log('Update result:', result);
-
         if (result.matchedCount === 0) {
-            return res.status(404).send({ message: 'User not found.' });
+            return res.status(404).json({ message: 'User not found.' });
         }
 
-        res.status(200).send({ message: 'Profile updated successfully!' });
+        res.status(200).json({ message: 'Profile updated successfully!' });
     } catch (error) {
         console.error('Error updating profile:', error);
-        res.status(500).send({ message: 'Internal server error.' });
+        res.status(500).json({ message: 'Internal server error.' });
     }
 });
 
-// Endpoint to get user profile by username
-app.get('/getUserProfile', async (req, res) => {
+// Define the /userProfile endpoint
+app.get('/userProfile', async (req, res) => {
     const { username } = req.query; // Get the username from the query parameters
-    console.log('Received username:', username); // Log the received username
 
-    const trimmedUsername = username.trim(); // Trim for the query
-    console.log('Trimmed username for DB query:', trimmedUsername);
+    if (!username) {
+        return res.status(400).json({ message: 'Username is required' });
+    }
 
     try {
-        const db = client.db();
-        const user = await db.collection('users').findOne({ username: trimmedUsername }); // Use trimmed username
+        const database = client.db('sample_mflix'); // Use your actual database name
+        const collection = database.collection('users'); // Use your actual collection name
+        const user = await collection.findOne({ username: username }); // Find user by username
 
-        if (user) {
-            console.log('User found:', user); // Log the user data
-            res.status(200).send({ Name: user.Name, Bio: user.Bio });
-        } else {
-            console.log(`User not found for username: ${trimmedUsername}`); // Log if no user is found
-            res.status(404).send({ message: 'User not found.' });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
         }
+
+        // Return the user profile data (assuming you want to return displayName and bio)
+        res.json({
+            displayName: user.Name, // Adjust according to your data structure
+            bio: user.Bio // Adjust according to your data structure
+        });
     } catch (error) {
-        console.error('Error fetching user profile:', error); // Log the error
-        res.status(500).send({ message: 'Internal server error.' });
+        console.error("Error fetching user profile:", error);
+        res.status(500).json({ message: 'Error fetching user profile' });
     }
 });
-// Start the server
-app.listen(port, () => {
-    connectToDatabase().then(() => {
+
+// Start the server and connect to the database
+app.listen(port, async () => {
+    try {
+        await connectToDatabase();
         console.log(`Server is running on http://localhost:${port}`);
-    }).catch(error => {
-        console.error('Failed to connect to the database:', error);
-        process.exit(1); // Exit the process with failure
-    });
+    } catch (error) {
+        console.error("Failed to connect to the database:", error);
+        process.exit(1); // Exit the process with a failure code
+    }
 });
+
+// Export the connection function and client for use in other files
+module.exports = {
+    connectToDatabase,
+    getClient: () => client
+};
