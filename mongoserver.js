@@ -97,6 +97,39 @@ app.listen(port, async () => {
     }
 });
 
+// Define the /AddProfile endpoint
+app.post('/AddProfile', async (req, res) => {
+    const { username, displayName, bio, createdAt, Gmail, password } = req.body; // Include Gmail and password
+
+    // Basic validation
+    if (!username || !displayName || !Gmail || !password) { // Ensure Gmail and password are provided
+        return res.status(400).json({ message: 'Username, display name, Gmail, and password are required.' });
+    }
+
+    try {
+        const db = client.db('sample_mflix'); // Use your actual database name
+        const newUser = {
+            username,
+            Name: displayName,
+            Gmail, // Save Gmail
+            password, // Save the hashed password
+            Bio: bio || '',
+            createdAt // Add timestamp
+        };
+
+        const result = await db.collection('users').insertOne(newUser);
+
+        if (!result.insertedId) {
+            return res.status(500).json({ message: 'Failed to create user profile.' });
+        }
+
+        res.status(201).json({ message: 'User profile created successfully!' });
+    } catch (error) {
+        console.error('Error adding profile:', error);
+        res.status(500).json({ message: 'Internal server error.' });
+    }
+});
+
 // Export the connection function and client for use in other files
 module.exports = {
     connectToDatabase,
