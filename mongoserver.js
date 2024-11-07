@@ -25,6 +25,60 @@ const connectToDatabase = async () => {
     }
 };
 
+// Define the updateTheme endpoint
+app.post('/updateTheme', async (req, res) => {
+    const { username, themeMode } = req.body;
+
+    // Basic validation
+    if (!username || (themeMode !== 0 && themeMode !== 1)) {
+        return res.status(400).json({ message: 'Invalid data provided. Ensure themeMode is either 0 or 1.' });
+    }
+
+    try {
+        const db = client.db('sample_mflix'); // Use your actual database name
+        const result = await db.collection('settings').updateOne(
+            { username: username }, // Match by username
+            { $set: { themeMode: themeMode } }, // Set the themeMode (0 for light, 1 for dark)
+            { upsert: true } // Insert if no document found for username
+        );
+
+        if (result.matchedCount === 0 && result.upsertedCount === 0) {
+            return res.status(404).json({ message: 'User settings not found, and failed to create new entry.' });
+        }
+
+        res.status(200).json({ message: 'Theme updated successfully!' });
+    } catch (error) {
+        console.error('Error updating theme:', error);
+        res.status(500).json({ message: 'Internal server error.' });
+    }
+});
+
+app.get('/getTheme', async (req, res) => {
+    const { username } = req.query; // Get the username from the query parameters
+
+    if (!username) {
+        return res.status(400).json({ message: 'Username is required' });
+    }
+
+    try {
+        const database = client.db('sample_mflix'); // Replace with your actual database name
+        const collection = database.collection('settings'); // Assuming you're using a `settings` collection
+        const user = await collection.findOne({ username: username }); // Fetch user by username
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        console.log('Fetched user:', user); // Check if user data is fetched correctly
+
+        // Return the themeMode in response
+        res.json({ themeMode: user.themeMode });
+    } catch (error) {
+        console.error("Error fetching theme:", error);
+        res.status(500).json({ message: 'Error fetching theme' });
+    }
+});
+
 // Define the updateProfile endpoint
 app.post('/updateProfile', async (req, res) => {
     const { username, displayName, bio } = req.body;
