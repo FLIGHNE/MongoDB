@@ -69,8 +69,6 @@ app.get('/getTheme', async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        console.log('Fetched user:', user); // Check if user data is fetched correctly
-
         // Return the themeMode in response
         res.json({ themeMode: user.themeMode });
     } catch (error) {
